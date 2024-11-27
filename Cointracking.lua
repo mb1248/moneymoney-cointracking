@@ -14,12 +14,38 @@ function SupportsBank (protocol, bankCode)
     return protocol == ProtocolWebBanking and bankCode == "CoinTracking"
 end
 
-local function login ()
-    local html = HTML(connection:get("https://cointracking.info/"))
-    html:xpath("//input[@id='log_us']"):attr("value", username)
-    html:xpath("//input[@id='log_pw']"):attr("value", password)
+local function urlencode(str)
+    if str then
+        str = string.gsub(str, "\n", "\r\n")
+        str = string.gsub(str, "([^%w %-%_%.%~])", function(c)
+            return string.format("%%%02X", string.byte(c))
+        end)
+        str = string.gsub(str, " ", "+")
+    end
+    return str
+end
 
-    html = HTML(connection:request(html:xpath("//form[@id='form_login']//input[@name='login']"):click()))
+local function encodePostData(data)
+    local encoded = {}
+    for key, value in pairs(data) do
+        table.insert(encoded, urlencode(key) .. "=" .. urlencode(value))
+    end
+    return table.concat(encoded, "&")
+end
+
+local function login()
+    local html = HTML(connection:get("https://cointracking.info/"))
+
+    local postData = encodePostData({
+        username_login = username,
+        password_login = password
+    })
+
+    local response = connection:post("https://cointracking.info/login.php", postData, "application/x-www-form-urlencoded")
+
+    html = HTML(response)
+
+    print("Login Response:", html:html())
 
     return html
 end
